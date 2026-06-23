@@ -126,7 +126,7 @@ npm -v
 ### 2. Clone the Repository
 Clone the project locally to your workspace:
 ```bash
-git clone https://github.com/YOUR_USERNAME/ghl-platform-apis.git
+git clone https://github.com/harisnaveed/ghl-api-playground.git
 cd ghl-platform-apis
 ```
 
