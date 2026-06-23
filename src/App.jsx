@@ -464,6 +464,7 @@ export default function App() {
   const [token, setToken] = useState(() => sessionStorage.getItem('ghl_tok') || '');
   const [inputLoc, setInputLoc] = useState(() => sessionStorage.getItem('ghl_loc') || '');
   const [inputTok, setInputTok] = useState(() => sessionStorage.getItem('ghl_tok') || '');
+  const [apiBase, setApiBase] = useState(() => sessionStorage.getItem('ghl_api_base') || 'api');
   const [companyId, setCompanyId] = useState(() => sessionStorage.getItem('ghl_company') || '');
   const [isConnected, setIsConnected] = useState(() => !!(sessionStorage.getItem('ghl_loc') && sessionStorage.getItem('ghl_tok')));
   const [activePage, setActivePage] = useState('overview');
@@ -482,6 +483,7 @@ export default function App() {
     setIsConnected(true);
     sessionStorage.setItem('ghl_loc', loc);
     sessionStorage.setItem('ghl_tok', tok);
+    sessionStorage.setItem('ghl_api_base', apiBase);
 
     // Fetch location info
     setLocLoading(true);
@@ -502,7 +504,7 @@ export default function App() {
     } finally {
       setLocLoading(false);
     }
-  }, [inputLoc, inputTok]);
+  }, [inputLoc, inputTok, apiBase]);
 
   const disconnect = () => {
     setLocationId(''); setToken('');
@@ -511,6 +513,8 @@ export default function App() {
     setIsConnected(false); setLocationData(null);
     locationData && setLocationName(''); setLocError(null);
     sessionStorage.clear();
+    // Re-initialize apiBase to what is currently in state
+    sessionStorage.setItem('ghl_api_base', apiBase);
     setActivePage('overview');
   };
 
@@ -592,6 +596,34 @@ export default function App() {
                   onKeyDown={e => e.key === 'Enter' && connect()}
                   spellCheck={false}
                 />
+              </div>
+              <div className="cred-input-wrap" style={{ maxWidth: 170 }}>
+                <span className="cred-input-icon">🌐</span>
+                <select
+                  className="cred-input"
+                  value={apiBase}
+                  onChange={e => setApiBase(e.target.value)}
+                  disabled={isConnected}
+                  style={{
+                    paddingLeft: '32px',
+                    paddingRight: '24px',
+                    cursor: isConnected ? 'not-allowed' : 'pointer',
+                    appearance: 'none',
+                    WebkitAppearance: 'none',
+                  }}
+                >
+                  <option value="api">Server Proxy (api)</option>
+                  <option value="https://services.leadconnectorhq.com">Direct GHL (CORS)</option>
+                </select>
+                <span style={{
+                  position: 'absolute',
+                  right: '12px',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  pointerEvents: 'none',
+                  fontSize: '9px',
+                  opacity: 0.5
+                }}>▼</span>
               </div>
               {isConnected ? (
                 <button

@@ -400,6 +400,11 @@ body {
   color: var(--text-muted);
 }
 
+.cred-input option {
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
+}
+
 .cred-input:focus {
   border-color: rgba(124, 58, 237, 0.5);
   background: rgba(124, 58, 237, 0.07);

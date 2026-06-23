@@ -1,4 +1,6 @@
-const BASE = '/api';
+const BASE = {
+  toString: () => sessionStorage.getItem('ghl_api_base') || 'api'
+};
 const VERSION = 'v3';
 
 function headers(token) {

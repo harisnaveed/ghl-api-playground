@@ -1,0 +1,10 @@
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+
+  # Pass Authorization Header through to CGI/FastCGI PHP setups on SiteGround
+  RewriteCond %{HTTP:Authorization} ^(.*)
+  RewriteRule .* - [E=HTTP_AUTHORIZATION:%1]
+
+  # Route all api/ requests to the proxy script (subdirectory compatible)
+  RewriteRule ^api/(.*)$ proxy.php?route=$1 [QSA,L]
+</IfModule>

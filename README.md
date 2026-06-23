@@ -103,11 +103,101 @@ The application queries the following endpoints from the GoHighLevel Developer P
 - **Core Request Headers:**
   - `Authorization: Bearer <Private_Integration_Token_Or_Access_Token>`
   - `Version: v3` *(Specified as `v3` to target the latest available revisions on the `/locations`, `/contacts`, and `/conversations` paths).*
-- **CORS Bypass:** During local development, the browser blocks requests directly to `services.leadconnectorhq.com` due to CORS restrictions. The project routes requests to `/api/*` locally, which `vite.config.js` transparently proxies to `https://services.leadconnectorhq.com` with the origin changed.
+- **CORS & Connection Modes:** During browser sessions, direct API requests to `services.leadconnectorhq.com` are blocked by default browser CORS restrictions. To resolve this on both development and production environments, the app includes a dropdown selector in the header bar:
+  - **Server Proxy (api) [Default]:** Directs requests locally relative to the folder where the app is loaded (`api`), which requires a server proxy configuration in production (such as Nginx, Apache, Laravel, or our built-in PHP proxy) to route requests to GoHighLevel. Allows hosting the app inside root folders or subdirectories seamlessly.
+  - **Direct GHL Connection:** Directs requests directly to `https://services.leadconnectorhq.com`. This is ideal for static hostings (like VS Code Live Server, Netlify, or Github Pages), but requires users to run a browser extension (such as "Allow CORS: Access-Control-Allow-Origin") to bypass CORS blocks in their client browser.
 
 ### 📖 Official Documentation Links
 - **Official Developer Portal:** [developers.gohighlevel.com](https://developers.gohighlevel.com/)
 - **API Reference & Specifications:** [marketplace.gohighlevel.com/docs/](https://marketplace.gohighlevel.com/docs/)
+
+---
+
+## 🌐 Production Server Configurations (For `/api` Proxy)
+
+If you host your built static files (`dist` folder) on a live server and select the **Server Proxy (`/api`)** mode, you must configure your server to proxy incoming `/api` traffic to GoHighLevel.
+
+### 1. Nginx Configuration
+Add this configuration inside your Nginx server block:
+```nginx
+location /api/ {
+    proxy_pass https://services.leadconnectorhq.com/;
+    proxy_set_header Host services.leadconnectorhq.com;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    
+    # CORS headers for API accessibility
+    add_header 'Access-Control-Allow-Origin' '*' always;
+    add_header 'Access-Control-Allow-Methods' 'GET, POST, OPTIONS, PUT, DELETE' always;
+    add_header 'Access-Control-Allow-Headers' 'Authorization, Version, Content-Type, Accept' always;
+}
+```
+
+### 2. Apache Configuration (`.htaccess`)
+Ensure `mod_proxy` and `mod_rewrite` are active, and add the following to your root directory `.htaccess`:
+```apache
+RewriteEngine On
+RewriteCond %{REQUEST_URI} ^/api/(.*)$
+RewriteRule ^api/(.*)$ https://services.leadconnectorhq.com/$1 [P,L]
+```
+
+### 3. Laravel Backend Route Proxy (Recommended for Laravel & React workspaces)
+If this app is paired with a Laravel backend (e.g. running on `https://instantquoteform.com`), you can add a route forwarder inside Laravel's `routes/api.php`:
+```php
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Route;
+
+Route::any('{any}', function (Request $request, $any) {
+    $targetUrl = 'https://services.leadconnectorhq.com/' . $any;
+    
+    $response = Http::withHeaders([
+        'Authorization' => $request->header('Authorization'),
+        'Version'       => $request->header('Version', 'v3'),
+        'Content-Type'  => 'application/json',
+    ])->send($request->method(), $targetUrl, [
+        'body'  => $request->getContent(),
+        'query' => $request->query(),
+    ]);
+
+    return response($response->body(), $response->status())
+        ->header('Content-Type', $response->header('Content-Type'));
+})->where('any', '.*');
+```
+
+### 4. Vercel Configuration (`vercel.json`)
+For Vercel deployments, write a `vercel.json` file in the project root:
+```json
+{
+  "rewrites": [
+    {
+      "source": "/api/:path*",
+      "destination": "https://services.leadconnectorhq.com/:path*"
+    }
+  ]
+}
+```
+
+### 5. Netlify Configuration (`_redirects`)
+For Netlify, create a `_redirects` file under the `/public` folder (so it copies to `/dist` output):
+```text
+/api/*  https://services.leadconnectorhq.com/:splat  200
+```
+
+### 6. SiteGround & Shared Hosting PHP Proxy (Built-in)
+Because SiteGround and most other shared hosting platforms disable Apache's `mod_proxy` (the `[P]` redirect flag) for security reasons, the standard `.htaccess` proxy rule will result in a 404. 
+
+To solve this, we have provided a pre-configured PHP proxy script (`proxy.php`) and `.htaccess` file inside the `public/` folder. This routes all traffic from `https://yourdomain.com/api/...` securely to GoHighLevel via PHP's `curl` utility and prevents Apache from stripping key authentication headers:
+
+1. Build the app using:
+   ```bash
+   npm run build
+   ```
+2. Upload the **contents** of the `dist/` folder directly to your SiteGround domain's `public_html` root (including the `.htaccess` and `proxy.php` files).
+3. Connect inside the app's topbar using the **Server Proxy (api)** option.
+
+💡 *For a detailed architectural breakdown of this issue, how PHP cURL resolves Apache proxy restrictions, and root vs subdirectory routing behavior, read our [TROUBLESHOOTING.md](./TROUBLESHOOTING.md) guide.*
 
 ---
 
